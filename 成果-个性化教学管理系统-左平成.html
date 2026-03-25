@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>江海大-个性化教学管理系统</title>
+    <!-- 依赖库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- 引入 Marked.js 用于高性能 Markdown 解析 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4b6cb7;
+            --secondary-color: #182848;
+            --bg-gradient: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+            --glass-bg: rgba(255, 255, 255, 0.98);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'PingFang SC', 'SF Pro Display', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            padding: 20px;
+            color: #2c3e50;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--glass-bg);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 2.8em;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        /* API 配置区 */
+        .api-config {
+            background: #f0f4f8;
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            border-left: 6px solid var(--primary-color);
+        }
+
+        .api-input-group {
+            display: flex;
+            gap: 12px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .api-input-group input {
+            flex: 1;
+            min-width: 280px;
+            padding: 14px;
+            border: 1px solid #dcdfe6;
+            border-radius: 10px;
+            font-size: 15px;
+            outline: none;
+            transition: border 0.3s;
+        }
+
+        .api-input-group input:focus { border-color: var(--primary-color); }
+
+        .mock-switch {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            background: #e1eaf2;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #34495e;
+            transition: background 0.2s;
+        }
+
+        .mock-switch:hover { background: #d1dbe5; }
+
+        /* 选项卡样式 */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #edf2f7;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 14px 28px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #95a5a6;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .tab.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* 渲染内容容器 */
+        .section {
+            background: #fff;
+            padding: 30px;
+            border-radius: 20px;
+            margin-bottom: 25px;
+            border: 1px solid #f1f4f8;
+        }
+
+        .section h2 {
+            margin-bottom: 25px;
+            font-size: 1.6em;
+            color: var(--secondary-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Markdown 分析结果显示优化 */
+        .analysis-result {
+            background: #fcfcfc;
+            padding: 30px;
+            border-radius: 16px;
+            margin-top: 25px;
+            border: 1px solid #eaedf3;
+            line-height: 1.7;
+            font-size: 16px;
+            overflow-x: auto;
+        }
+
+        /* Markdown 样式 */
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin: 20px 0 10px; color: var(--secondary-color); }
+        .markdown-body p { margin-bottom: 12px; }
+        .markdown-body ul, .markdown-body ol { margin-left: 25px; margin-bottom: 15px; }
+        .markdown-body li { margin-bottom: 5px; }
+        .markdown-body code { background: #f3f4f6; padding: 2px 5px; border-radius: 4px; font-family: monospace; }
+        .markdown-body pre { background: #2d3436; color: #dfe6e9; padding: 15px; border-radius: 10px; overflow-x: auto; margin: 15px 0; }
+        .markdown-body table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .markdown-body th, .markdown-body td { border: 1px solid #dfe6e9; padding: 12px; text-align: left; }
+        .markdown-body th { background: #f8fafc; font-weight: 600; }
+        .markdown-body blockquote { border-left: 4px solid var(--primary-color); padding-left: 15px; color: #636e72; font-style: italic; margin: 15px 0; }
+
+        /* 按钮样式 */
+        .btn {
+            background: var(--bg-gradient);
+            color: #fff;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(75, 108, 183, 0.3); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn.danger { background: #e74c3c; }
+
+        /* 图表网格 */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 25px;
+            margin-top: 25px;
+        }
+
+        .chart-card {
+            background: #fff;
+            padding: 25px;
+            border-radius: 18px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border: 1px solid #f0f0f0;
+        }
+
+        .canvas-container { position: relative; height: 320px; width: 100%; }
+
+        @media (max-width: 768px) {
+            .chart-grid { grid-template-columns: 1fr; }
+            .container { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎓 江海大-个性化教学管理</h1>
+        <p class="subtitle">AI 驱动的章节维度精准导学平台</p>
+
+        <!-- API 配置 -->
+        <div class="api-config">
+            <strong>⚙️ AI 分析引擎配置</strong>
+            <div class="api-input-group">
+                <input type="password" id="apiKey" placeholder="输入 DeepSeek API Key (sk-...)">
+                <button class="btn" id="testApiBtn" onclick="testAPI()">🔍 测试连接</button>
+            </div>
+            
+            <div class="mock-switch" onclick="toggleMockMode()">
+                <input type="checkbox" id="mockModeCheckbox">
+                <label for="mockModeCheckbox" style="margin: 0; cursor: pointer;">🛠️ 启用演示模式 (离线查看渲染效果)</label>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab(0)">📊 班级管理</button>
+            <button class="tab" onclick="switchTab(1)">📝 成绩录入</button>
+            <button class="tab" onclick="switchTab(2)">🎯 个性方案</button>
+            <button class="tab" onclick="switchTab(3)">💬 教学助手</button>
+            <button class="tab" onclick="switchTab(4)">📈 质量评估</button>
+        </div>
+
+        <!-- 标签页内容 -->
+        <div id="tab0" class="tab-content active">
+            <div class="section">
+                <h2>📤 名单导入</h2>
+                <div class="upload-area" onclick="document.getElementById('studentFile').click()" style="border: 2px dashed #cbd5e0; border-radius: 16px; padding: 50px; text-align: center; cursor: pointer; background: #fbfcfd; transition: all 0.3s;">
+                    <p style="color: var(--primary-color); font-weight: 600; font-size: 1.1em;">点击或拖拽学生名单 (Excel/CSV)</p>
+                    <p style="font-size: 0.9em; color: #94a3b8; margin-top: 10px;">需包含列：学号、姓名</p>
+                    <input type="file" id="studentFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="loadStudents(event)">
+                </div>
+                <div id="studentListContainer" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+
+        <div id="tab1" class="tab-content" style="display:none;">
+            <div class="section">
+                <h2>📊 章节成绩批量导入</h2>
+                <div class="upload-area" onclick="document.getElementById('homeworkFile').click()" style="border: 2px dashed #cbd5e0; border-radius: 16px; padding: 50px; text-align: center; cursor: pointer; background: #fbfcfd;">
+                    <p style="color: var(--primary-color); font-weight: 600;">上传章节分项成绩表</p>
+                    <p style="font-size: 0.85em; color: #94a3b8; margin-top: 10px;">格式：学号 | 姓名 | 章节1 | 分数1 | 章节2 | 分数2 ...</p>
+                    <input type="file" id="homeworkFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="loadScores(event)">
+                </div>
+                
+                <div style="margin-top: 25px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; color: #475569;">数据池总量：<b id="dataCount" style="color: var(--primary-color);">0</b></span>
+                    <button class="btn danger" onclick="clearAllScores()">🗑️ 情况所有记录</button>
+                </div>
+                <div id="homeworkResults" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+
+        <div id="tab2" class="tab-content" style="display:none;">
+            <div class="section">
+                <h2>🎯 智能导学方案生成</h2>
+                <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                    <select id="studentSelect" style="flex: 1; padding: 14px; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 15px;">
+                        <option value="">-- 请选择目标学生 --</option>
+                    </select>
+                    <button class="btn" onclick="generatePlan()">✨ 生成 Markdown 报告</button>
+                </div>
+                <div id="planResult" class="analysis-result markdown-body" style="display:none;"></div>
+            </div>
+        </div>
+
+        <div id="tab3" class="tab-content" style="display:none;">
+            <div class="section">
+                <h2>💬 教学指导助手</h2>
+                <div id="chatContainer" style="height: 500px; overflow-y: auto; border: 1px solid #edf2f7; border-radius: 16px; padding: 25px; background: #f8fafc; margin-bottom: 20px; display: flex; flex-direction: column; gap: 15px;">
+                    <div class="message ai" style="background: white; padding: 15px 20px; border-radius: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); max-width: 85%; border: 1px solid #e2e8f0;">
+                        您好！我是您的 AI 助手。您可以询问我关于班级整体情况、特定章节的教学策略或个别学生的预警分析。
+                    </div>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <input type="text" id="chatInput" placeholder="请输入您的教学咨询问题..." style="flex: 1; padding: 15px; border: 1px solid #e2e8f0; border-radius: 12px;" onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button class="btn" onclick="sendMessage()">咨询</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab4" class="tab-content" style="display:none;">
+            <div class="section">
+                <h2>📈 全班教学效果分析</h2>
+                <button class="btn" onclick="generateEvaluation()">📊 启动深度评估引擎</button>
+                
+                <div id="chartsArea" style="display: none; margin-top: 30px;">
+                    <div class="chart-grid">
+                        <div class="chart-card">
+                            <h3 style="text-align:center; font-size:16px; margin-bottom:20px;">各分数段学生占比</h3>
+                            <div class="canvas-container"><canvas id="classDistChart"></canvas></div>
+                        </div>
+                        <div class="chart-card">
+                            <h3 style="text-align:center; font-size:16px; margin-bottom:20px;">章节均分对比 (全班)</h3>
+                            <div class="canvas-container"><canvas id="chapterAvgChart"></canvas></div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-card" style="margin-top: 25px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap: wrap; gap:10px;">
+                            <h3 style="font-size:16px;">个体章节能力图谱 (对比班级均值)</h3>
+                            <select id="radarStudentSelect" onchange="updateRadarChart()" style="padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+                                <option value="">选择学生...</option>
+                            </select>
+                        </div>
+                        <div style="height: 450px;"><canvas id="studentRadarChart"></canvas></div>
+                    </div>
+                </div>
+
+                <div id="evaluationResult" class="analysis-result markdown-body" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let students = [];
+        let gradedHomework = [];
+        let isMockMode = false;
+        let charts = { dist: null, chapter: null, radar: null };
+
+        // 初始化配置
+        marked.setOptions({ breaks: true, gfm: true });
+
+        function switchTab(index) {
+            document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === index));
+            document.querySelectorAll('.tab-content').forEach((c, i) => {
+                c.style.display = i === index ? 'block' : 'none';
+            });
+        }
+
+        function toggleMockMode() {
+            const cb = document.getElementById('mockModeCheckbox');
+            if(event && event.target.tagName !== 'INPUT') cb.checked = !cb.checked;
+            isMockMode = cb.checked;
+        }
+
+        async function callAI(prompt, system) {
+            if(isMockMode) {
+                return `### 分析报告总结\n\n| 章节 | 掌握度 | 状态 |\n| :--- | :--- | :--- |\n| 章节1 | 85% | 优 |\n| 章节2 | 40% | 需关注 |\n\n**建议措施：**\n1. 针对“章节2”开展小组研讨。\n2. 鼓励学生使用 AI 助手进行基础复习。\n\n> 提示：本数据为演示模拟数据。`;
+            }
+            const key = document.getElementById('apiKey').value.trim();
+            if(!key) return null;
+            try {
+                const res = await fetch('https://api.deepseek.com/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+                    body: JSON.stringify({
+                        model: 'deepseek-chat',
+                        messages: [{role:'system', content:system}, {role:'user', content:prompt}]
+                    })
+                });
+                const d = await res.json();
+                return d.choices[0].message.content;
+            } catch(e) { return "❌ 连接 DeepSeek 失败，请检查网络或 Key。"; }
+        }
+
+        async function testAPI() {
+            const btn = document.getElementById('testApiBtn');
+            btn.disabled = true; btn.textContent = '测试中...';
+            const res = await callAI('Hi', 'Connect test');
+            if(res) {
+                alert('✅ 连接成功！');
+                btn.classList.add('success');
+            }
+            btn.disabled = false; btn.textContent = '🔍 测试连接';
+        }
+
+        // 数据加载
+        function loadStudents(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                    students = jsonData.map(row => ({
+                        id: String(row['学号'] || row['id'] || ''),
+                        name: String(row['姓名'] || row['name'] || '')
+                    })).filter(s => s.id);
+                    updateStudentSelects();
+                    renderStudentList();
+                    alert(`✅ 名单载入：${students.length}人`);
+                } catch (err) { alert('文件解析错误'); }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function renderStudentList() {
+            const container = document.getElementById('studentListContainer');
+            container.innerHTML = students.map(s => `<span style="display:inline-block; background:#e2e8f0; padding:5px 12px; border-radius:20px; margin:4px; font-size:13px;">${s.name} (${s.id})</span>`).join('');
+        }
+
+        function updateStudentSelects() {
+            const html = '<option value="">-- 选择学生 --</option>' + students.map(s => `<option value="${s.id}">${s.name} (${s.id})</option>`).join('');
+            document.getElementById('studentSelect').innerHTML = html;
+            document.getElementById('radarStudentSelect').innerHTML = html;
+        }
+
+        function loadScores(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
+                let start = (rows[0] && String(rows[0][0]).includes('学号')) ? 1 : 0;
+                for(let r = start; r < rows.length; r++) {
+                    const row = rows[r]; if(!row || !row[0]) continue;
+                    const sid = String(row[0]);
+                    for(let c = 2; c < row.length; c += 2) {
+                        const ch = row[c], sc = parseFloat(row[c+1]);
+                        if(ch && !isNaN(sc)) {
+                            const idx = gradedHomework.findIndex(h => h.id === sid && h.chapter === ch);
+                            if(idx > -1) gradedHomework[idx].score = sc;
+                            else gradedHomework.push({id: sid, name: String(row[1]||''), chapter: String(ch), score: sc});
+                        }
+                    }
+                }
+                document.getElementById('dataCount').textContent = gradedHomework.length;
+                alert('数据同步成功');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function clearAllScores() { gradedHomework = []; document.getElementById('dataCount').textContent = '0'; }
+
+        // 核心渲染逻辑
+        async function generatePlan() {
+            const sid = document.getElementById('studentSelect').value;
+            if(!sid) return alert('请选择学生');
+            const resArea = document.getElementById('planResult');
+            resArea.style.display = 'block';
+            resArea.innerHTML = '正在调用 AI 引擎生成 Markdown 报告...';
+            const data = gradedHomework.filter(h => h.id === sid).map(s => `${s.chapter}: ${s.score}`).join(', ');
+            const res = await callAI(`学生${sid}成绩：${data}。请生成一份详细的 Markdown 格式导学报告。`, "教学方案专家");
+            resArea.innerHTML = marked.parse(res || "无数据生成");
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const box = document.getElementById('chatContainer');
+            if(!input.value) return;
+            box.innerHTML += `<div style="align-self: flex-end; background: var(--primary-color); color: white; padding: 12px 20px; border-radius: 14px; max-width: 80%;">${input.value}</div>`;
+            const q = input.value; input.value = '';
+            const aiLoading = document.createElement('div');
+            aiLoading.className = 'message ai markdown-body';
+            aiLoading.innerHTML = "思考中...";
+            box.appendChild(aiLoading); box.scrollTop = box.scrollHeight;
+            const res = await callAI(q, "资深教学顾问");
+            aiLoading.innerHTML = marked.parse(res || "抱歉，没能生成回复。");
+            box.scrollTop = box.scrollHeight;
+        }
+
+        async function generateEvaluation() {
+            if(!gradedHomework.length) return alert('空数据库');
+            document.getElementById('chartsArea').style.display = 'block';
+            renderGlobalCharts();
+            const resArea = document.getElementById('evaluationResult');
+            resArea.style.display = 'block';
+            resArea.innerHTML = 'AI 正在对全班数据进行多维建模分析...';
+            const res = await callAI('请对当前班级整体成绩进行学情分析，使用 Markdown 表格对比优势与挑战。', "教育评估主任");
+            resArea.innerHTML = marked.parse(res || "生成失败");
+        }
+
+        // 柱状图逻辑修复
+        function renderGlobalCharts() {
+            // 1. 分布饼图
+            const scores = gradedHomework.map(h => h.score);
+            const dist = [0, 0, 0];
+            scores.forEach(s => { if(s < 60) dist[0]++; else if(s < 85) dist[1]++; else dist[2]++; });
+            
+            if(charts.dist) charts.dist.destroy();
+            charts.dist = new Chart(document.getElementById('classDistChart'), {
+                type: 'doughnut',
+                data: { labels: ['不及格', '良好', '优秀'], datasets: [{ data: dist, backgroundColor: ['#ff7675', '#74b9ff', '#55efc4'] }] },
+                options: { maintainAspectRatio: false }
+            });
+
+            // 2. 章节均分柱状图 (修复点)
+            const chaps = [...new Set(gradedHomework.map(h => h.chapter))];
+            const avgs = chaps.map(c => {
+                const s = gradedHomework.filter(h => h.chapter === c).map(h => h.score);
+                return (s.reduce((a,b)=>a+b, 0) / s.length).toFixed(1);
+            });
+
+            if(charts.chapter) charts.chapter.destroy();
+            charts.chapter = new Chart(document.getElementById('chapterAvgChart'), {
+                type: 'bar',
+                data: { 
+                    labels: chaps, 
+                    datasets: [{ 
+                        label: '平均分', 
+                        data: avgs, 
+                        backgroundColor: '#4b6cb7',
+                        borderRadius: 8
+                    }] 
+                },
+                options: { 
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 100 } }
+                }
+            });
+        }
+
+        function updateRadarChart() {
+            const sid = document.getElementById('radarStudentSelect').value;
+            if(charts.radar) charts.radar.destroy();
+            if(!sid) return;
+
+            const chaps = [...new Set(gradedHomework.map(h => h.chapter))];
+            const sData = gradedHomework.filter(h => h.id === sid);
+            const scores = chaps.map(c => (sData.find(h=>h.chapter===c)||{score:0}).score);
+            const classAvgs = chaps.map(c => {
+                const s = gradedHomework.filter(h => h.chapter === c).map(h => h.score);
+                return (s.reduce((a,b)=>a+b, 0) / s.length).toFixed(1);
+            });
+
+            charts.radar = new Chart(document.getElementById('studentRadarChart'), {
+                type: 'radar',
+                data: {
+                    labels: chaps,
+                    datasets: [
+                        { label: '该生得分', data: scores, borderColor: '#4b6cb7', backgroundColor: 'rgba(75, 108, 183, 0.2)' },
+                        { label: '班级平均', data: classAvgs, borderColor: '#dcdfe6', borderDash: [5,5], fill: false }
+                    ]
+                },
+                options: { 
+                    scales: { r: { beginAtZero: true, max: 100 } },
+                    maintainAspectRatio: false
+                }
+            });
+        }
+    </script>
+</body>
+</html>
